@@ -3,11 +3,70 @@
   <POU Name="MAIN" Id="{0dfc367f-985a-43ca-bdf9-ae8f21c3a4dc}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	fbHttpClientPostman : FB_IotHttpClient :=(sHostName:='postman-echo.com', bKeepAlive:=TRUE, tConnectionTimeout:=T#10S);
+    client              : FB_IotHttpClient := (sHostName := 'postman-echo.com', bKeepAlive := TRUE, tConnectionTimeout := T#10S);
+    request             : FB_IotHttpRequest;
+    trigger             : BOOL;  // True to enable request
+    state               : (IDLE, SEND_REQUEST, WAIT_FOR_RESPONSE, READ_RESPONSE, ERROR);
+    samplestring        : STRING(511);
+    jsonDocumentParser  : FB_JsonDomParser;
+    jsonDocumentPointer : SJsonValue;
+    jsonArgsMember      : SJsonValue;
+    jsonFoo2Member      : SJsonValue;
+    results             : STRING;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[IF NOT client.bConfigured THEN
+    client.nHostPort := 80;
+END_IF
+
+IF client.bConfigured THEN
+    CASE State OF
+        IDLE:
+            IF trigger THEN
+                state := SEND_REQUEST;
+                trigger := FALSE;
+            END_IF
+
+        SEND_REQUEST:
+            IF request.SendRequest(sUri := '/get?foo1=bar1&foo2=bar2', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_GET, 0, 0, 0) THEN
+                state := WAIT_FOR_RESPONSE;
+            END_IF
+
+        WAIT_FOR_RESPONSE:
+            IF NOT request.bBusy THEN
+                state := READ_RESPONSE;
+            END_IF
+
+            IF request.bError THEN
+                state := ERROR;
+            END_IF
+
+        READ_RESPONSE:
+            request.GetContent(pContent := ADR(samplestring), nContentSize := SIZEOF(samplestring), bSetNullTermination := TRUE);
+
+            IF request.nStatusCode >= 200 AND request.nStatusCode < 300 THEN
+                jsonDocumentPointer := request.GetJsonDomContent(jsonDocumentParser);
+                IF jsonDocumentPointer <> 0 THEN
+                    IF jsonDocumentParser.HasMember(jsonDocumentPointer, 'args') THEN
+                        jsonArgsMember := jsonDocumentParser.FindMember(jsonDocumentPointer, 'args');
+                        IF jsonDocumentParser.HasMember(jsonArgsMember, 'foo2') THEN
+                            jsonFoo2Member := jsonDocumentParser.FindMember(jsonArgsMember, 'foo2');
+                            IF jsonDocumentParser.IsString(jsonFoo2Member) THEN
+                                results := jsonDocumentParser.GetString(jsonFoo2Member);
+                            END_IF
+                        END_IF
+                    END_IF
+                END_IF
+            END_IF
+            state := IDLE;
+
+        ERROR:
+            //
+    END_CASE
+END_IF
+
+client.Execute();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
