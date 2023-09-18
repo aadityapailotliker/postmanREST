@@ -15,7 +15,8 @@ VAR
     results             : STRING;
 END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF NOT client.bConfigured THEN
+      <ST><![CDATA[
+IF NOT client.bConfigured THEN
     client.nHostPort := 443;
 	client.stTLS.bNoServerCertCheck := TRUE;
 END_IF
@@ -29,7 +30,7 @@ IF client.bConfigured THEN
             END_IF
 
         SEND_REQUEST:
-            IF request.SendRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_GET, 0, 0, 0) THEN
+            IF request.SendRequest(sUri := '/askingfordata?id=2', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_GET, 0, 0, 0) THEN
                 state := WAIT_FOR_RESPONSE;
             END_IF
 
