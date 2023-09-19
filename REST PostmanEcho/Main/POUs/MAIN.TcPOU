@@ -13,6 +13,7 @@ VAR
     jsonMachine         : SJsonValue;
     jsonName            : SJsonValue;
     results             : STRING;
+	myOutputString      : STRING(300) := 'Data to send to post';
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[
@@ -30,7 +31,7 @@ IF client.bConfigured THEN
             END_IF
 
         SEND_REQUEST:
-            IF request.SendRequest(sUri := '/askingfordata?id=2', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_GET, 0, 0, 0) THEN
+            IF request.SendRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_POST, ADR(myOutputString), len(myOutputString), 0) THEN
                 state := WAIT_FOR_RESPONSE;
             END_IF
 
@@ -45,8 +46,9 @@ IF client.bConfigured THEN
 
         READ_RESPONSE:
             request.GetContent(pContent := ADR(samplestring), nContentSize := SIZEOF(samplestring), bSetNullTermination := TRUE);
-
-            IF request.nStatusCode >= 200 AND request.nStatusCode < 300 THEN
+			
+			// JSON parser for HTTP_GET
+           (* IF request.nStatusCode >= 200 AND request.nStatusCode < 300 THEN
                 jsonDocumentPointer := request.GetJsonDomContent(jsonDocumentParser);
                 IF jsonDocumentPointer <> 0 THEN
                     IF jsonDocumentParser.HasMember(jsonDocumentPointer, 'machine') THEN
@@ -59,7 +61,7 @@ IF client.bConfigured THEN
                         END_IF
                     END_IF
                 END_IF
-            END_IF
+            END_IF *)
             state := IDLE;
 
         ERROR:
