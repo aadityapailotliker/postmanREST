@@ -6,12 +6,15 @@ VAR
     client              : FB_IotHttpClient := (sHostName := 'efb2c5ee-ec8a-44f5-aec8-410765a25d53.mock.pstmn.io', bKeepAlive := TRUE, tConnectionTimeout := T#10S);
     request             : FB_IotHttpRequest;
     trigger             : BOOL;  // True to enable request
-    state               : (IDLE, SEND_REQUEST, WAIT_FOR_RESPONSE, READ_RESPONSE, ERROR);
+    state               : (IDLE, MAKE_JSON, SEND_REQUEST, WAIT_FOR_RESPONSE, READ_RESPONSE, ERROR);
     samplestring        : STRING(511);
     jsonDocumentParser  : FB_JsonDomParser;
     jsonDocumentPointer : SJsonValue;
-    jsonMachine         : SJsonValue;
-    jsonName            : SJsonValue;
+	
+	// Part of JSON parser for HTTP_GET
+ (* jsonMachine         : SJsonValue;
+    jsonName            : SJsonValue; *)
+	
     results             : STRING;
 	myOutputString      : STRING(300) := 'Data to send to post';
 END_VAR]]></Declaration>
@@ -26,12 +29,17 @@ IF client.bConfigured THEN
     CASE State OF
         IDLE:
             IF trigger THEN
-                state := SEND_REQUEST;
+                state := MAKE_JSON;
                 trigger := FALSE;
             END_IF
-
+			
+		MAKE_JSON:
+			jsonDocumentPointer := jsonDocumentParser.NewDocument();
+			jsonDocumentParser.AddIntMember(jsonDocumentPointer, 'myInt', 123);
+			state := SEND_REQUEST;
+			
         SEND_REQUEST:
-            IF request.SendRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_POST, ADR(myOutputString), len(myOutputString), 0) THEN
+            IF request.SendJsonDomRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_PUT, jsonDocumentParser, 0) THEN
                 state := WAIT_FOR_RESPONSE;
             END_IF
 
