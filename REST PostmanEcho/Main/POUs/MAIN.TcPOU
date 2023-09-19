@@ -6,17 +6,15 @@ VAR
     client              : FB_IotHttpClient := (sHostName := 'efb2c5ee-ec8a-44f5-aec8-410765a25d53.mock.pstmn.io', bKeepAlive := TRUE, tConnectionTimeout := T#10S);
     request             : FB_IotHttpRequest;
     trigger             : BOOL;  // True to enable request
-    state               : (IDLE, MAKE_JSON, SEND_REQUEST, WAIT_FOR_RESPONSE, READ_RESPONSE, ERROR);
+    state               : (IDLE, MAKE_HEADER, MAKE_JSON, SEND_REQUEST, WAIT_FOR_RESPONSE, READ_RESPONSE, ERROR);
     samplestring        : STRING(511);
     jsonDocumentParser  : FB_JsonDomParser;
     jsonDocumentPointer : SJsonValue;
-	
-	// Part of JSON parser for HTTP_GET
- (* jsonMachine         : SJsonValue;
+ (* jsonMachine         : SJsonValue; // Part of JSON parser for HTTP_GET
     jsonName            : SJsonValue; *)
-	
     results             : STRING;
 	myOutputString      : STRING(300) := 'Data to send to post';
+	header				: FB_IotHttpHeaderFieldMap;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[
@@ -29,9 +27,14 @@ IF client.bConfigured THEN
     CASE State OF
         IDLE:
             IF trigger THEN
-                state := MAKE_JSON;
+                state := MAKE_HEADER;
                 trigger := FALSE;
             END_IF
+		
+		MAKE_HEADER:
+			header.AddField('askingfordataheader1', '123', TRUE);
+			header.AddField('askingfordataheader2', '456', TRUE);		
+			state := MAKE_JSON;
 			
 		MAKE_JSON:
 			jsonDocumentPointer := jsonDocumentParser.NewDocument();
@@ -39,7 +42,7 @@ IF client.bConfigured THEN
 			state := SEND_REQUEST;
 			
         SEND_REQUEST:
-            IF request.SendJsonDomRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_PUT, jsonDocumentParser, 0) THEN
+            IF request.SendJsonDomRequest(sUri := '/askingfordata', fbClient := client, eRequestType := ETcIotHttpRequestType.HTTP_PUT, jsonDocumentParser, header) THEN
                 state := WAIT_FOR_RESPONSE;
             END_IF
 
